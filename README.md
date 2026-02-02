@@ -8,7 +8,7 @@ OpenClawd 的 Docker 部署方案，用于在容器中运行 Gateway 与 CLI，�
 ## 前置要求
 
 - Docker Desktop 或 Docker Engine + Docker Compose v2
-- 宿主机可访问 GitHub（构建时会克隆 openclaw/openclaw）
+- 从本地源码构建：`openclaw-src/` 不存在时，一键脚本会自动克隆 [openclaw/openclaw](https://github.com/openclaw/openclaw)，无需手动准备
 
 ## 快速开始
 
@@ -23,7 +23,7 @@ cd docker-openclawd
 docker-setup.bat
 ```
 
-脚本会创建 `.env`、生成 Gateway 令牌、构建镜像并启动 Gateway。
+脚本会：若缺少 `openclaw-src/` 则自动克隆、创建 `.env`、生成 Gateway 令牌、构建镜像并启动 Gateway。
 
 **方式二：手动编译安装**
 
@@ -32,11 +32,14 @@ docker-setup.bat
 git clone https://github.com/liam798/docker-openclawd.git
 cd docker-openclawd
 
-# 2. 复制环境变量并（可选）编辑
+# 2. 若没有 openclaw-src/，需先克隆（或直接运行 docker-setup.sh 自动完成）
+# git clone --depth 1 https://github.com/openclaw/openclaw.git openclaw-src
+
+# 3. 复制环境变量并（可选）编辑
 cp .env.example .env
 # 建议生成并填写 OPENCLAW_GATEWAY_TOKEN，例如: openssl rand -hex 24
 
-# 3. 构建并启动 Gateway
+# 4. 构建并启动 Gateway
 docker compose build
 docker compose up -d openclaw-gateway
 ```

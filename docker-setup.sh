@@ -29,6 +29,12 @@ fi
 # 确保数据目录存在
 mkdir -p ./data/openclaw ./data/workspace 2>/dev/null || true
 
+# 若 openclaw-src/ 不存在则自动克隆（构建时 COPY 进镜像）
+if [ ! -d "openclaw-src/.git" ]; then
+  echo "[docker-setup] 正在克隆 openclaw/openclaw 到 openclaw-src/ ..."
+  git clone --depth 1 https://github.com/openclaw/openclaw.git openclaw-src
+fi
+
 echo "[docker-setup] 构建镜像（首次较慢）..."
 docker compose build
 

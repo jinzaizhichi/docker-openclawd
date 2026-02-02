@@ -16,6 +16,12 @@ REM 确保数据目录存在
 if not exist "data\openclaw" mkdir "data\openclaw"
 if not exist "data\workspace" mkdir "data\workspace"
 
+REM 若 openclaw-src 不存在则自动克隆
+if not exist "openclaw-src\.git" (
+  echo [docker-setup] 正在克隆 openclaw/openclaw 到 openclaw-src/ ...
+  git clone --depth 1 https://github.com/openclaw/openclaw.git openclaw-src
+)
+
 echo [docker-setup] 构建镜像（首次较慢）...
 docker compose build
 if errorlevel 1 exit /b 1
