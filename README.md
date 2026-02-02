@@ -12,7 +12,17 @@ OpenClawd 的 Docker 部署方案，用于在容器中运行 Gateway 与 CLI，�
 
 ## 快速开始
 
-**方式一：一键安装（推荐）**
+**一行命令安装（推荐）**
+
+```bash
+# macOS/Linux:
+git clone https://github.com/liam798/docker-openclawd.git && cd docker-openclawd && ./docker-setup.sh
+
+# Windows (CMD):
+git clone https://github.com/liam798/docker-openclawd.git && cd docker-openclawd && docker-setup.bat
+```
+
+**或分步执行：**
 
 ```bash
 git clone https://github.com/liam798/docker-openclawd.git
