@@ -25,10 +25,10 @@ RUN corepack enable
 
 WORKDIR /app
 
-# 克隆官方仓库并保留构建所需文件（99noproxy 禁用 apt 代理，避免宿主机错误代理注入）
+# 克隆官方仓库并保留构建所需文件（99noproxy 禁用 apt；git clone 前清空代理，避免宿主机代理注入）
 RUN printf 'Acquire::http::Proxy "false";\nAcquire::https::Proxy "false";\n' > /etc/apt/apt.conf.d/99noproxy \
     && apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
-    && git clone --depth 1 --branch "${OPENCLAW_VERSION}" https://github.com/openclaw/openclaw.git . \
+    && http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= git clone --depth 1 --branch "${OPENCLAW_VERSION}" https://github.com/openclaw/openclaw.git . \
     && rm -rf .git \
     && apt-get purge -y git && apt-get autoremove -y --purge && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
