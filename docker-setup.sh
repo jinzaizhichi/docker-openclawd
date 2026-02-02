@@ -26,8 +26,17 @@ if ! grep -q '^OPENCLAW_GATEWAY_TOKEN=.\+' .env 2>/dev/null; then
   fi
 fi
 
-# 确保数据目录存在
-mkdir -p ./data/openclaw ./data/workspace 2>/dev/null || true
+# 确保数据目录存在，并设置正确的权限（UID 1000:1000）
+mkdir -p ./data/openclaw ./data/workspace ./data/openclaw/extensions 2>/dev/null || true
+# 设置目录权限，确保容器内用户（1000:1000）可以读写
+chmod -R 755 ./data/openclaw ./data/workspace 2>/dev/null || true
+# 如果可能，设置所有者（需要 root 权限）
+if [ "$(id -u)" = "0" ]; then
+  chown -R 1000:1000 ./data/openclaw ./data/workspace 2>/dev/null || true
+else
+  # 非 root 用户：至少确保目录可写
+  chmod -R 777 ./data/openclaw ./data/workspace 2>/dev/null || true
+fi
 
 # 读取 Gateway token（用于后续配置）
 GATEWAY_TOKEN=$(grep '^OPENCLAW_GATEWAY_TOKEN=' .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' || echo "")
@@ -124,19 +133,19 @@ else
   NEED_MIGRATION=false
   if [ -f "$CONFIG_FILE" ]; then
     # 检查是否存在旧格式的 gateway.token
-    if python3 - <<PY 2>/dev/null; then
+    if python3 -c "
 import json
 import pathlib
-p = pathlib.Path("$CONFIG_FILE")
+import sys
+p = pathlib.Path('$CONFIG_FILE')
 try:
     data = json.loads(p.read_text())
-    if "gateway" in data and "token" in data["gateway"] and "auth" not in data["gateway"]:
-        exit(0)  # 需要迁移
-    exit(1)  # 不需要迁移
+    if 'gateway' in data and 'token' in data['gateway'] and 'auth' not in data['gateway']:
+        sys.exit(0)  # 需要迁移
+    sys.exit(1)  # 不需要迁移
 except:
-    exit(1)
-PY
-    then
+    sys.exit(1)
+" 2>/dev/null; then
       NEED_MIGRATION=true
     fi
   fi
@@ -144,23 +153,23 @@ PY
   if [ "$NEED_MIGRATION" = true ]; then
     echo "[docker-setup] 检测到旧配置格式，自动迁移 gateway.token -> gateway.auth.token ..."
     # 使用 Python 迁移配置
-    python3 - <<PY 2>/dev/null || true
+    python3 -c "
 import json
 import pathlib
 
-p = pathlib.Path("$CONFIG_FILE")
+p = pathlib.Path('$CONFIG_FILE')
 try:
     data = json.loads(p.read_text())
-    if "gateway" in data and "token" in data["gateway"]:
-        token = data["gateway"]["token"]
+    if 'gateway' in data and 'token' in data['gateway']:
+        token = data['gateway']['token']
         if token:
-            data.setdefault("gateway", {}).setdefault("auth", {})["token"] = token
-            data["gateway"].pop("token", None)
+            data.setdefault('gateway', {}).setdefault('auth', {})['token'] = token
+            data['gateway'].pop('token', None)
             p.write_text(json.dumps(data, ensure_ascii=False, indent=2))
-            print("配置已迁移")
+            print('配置已迁移')
 except Exception as e:
     pass
-PY
+" 2>/dev/null || true
     
     # 迁移后重启 Gateway 使新配置生效
     echo "[docker-setup] 重启 Gateway 使新配置生效..."

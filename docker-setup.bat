@@ -12,8 +12,9 @@ if not exist .env (
 REM 若 .env 中 OPENCLAW_GATEWAY_TOKEN 为空，用 PowerShell 生成并写回
 powershell -NoProfile -Command "$c = Get-Content .env -Raw -ErrorAction SilentlyContinue; if ($c -and $c -notmatch 'OPENCLAW_GATEWAY_TOKEN=.+') { $b = New-Object byte[] 24; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); $t = -join ($b | ForEach-Object { $_.ToString('x2') }); if ($c -match 'OPENCLAW_GATEWAY_TOKEN=') { $c = $c -replace 'OPENCLAW_GATEWAY_TOKEN=.*', \"OPENCLAW_GATEWAY_TOKEN=$t\" } else { $c = $c.TrimEnd() + \"`nOPENCLAW_GATEWAY_TOKEN=$t`n\" }; Set-Content .env $c -NoNewline; Write-Host '[docker-setup] 已生成 OPENCLAW_GATEWAY_TOKEN 并写入 .env' }"
 
-REM 确保数据目录存在
+REM 确保数据目录存在，包括 extensions 子目录
 if not exist "data\openclaw" mkdir "data\openclaw"
+if not exist "data\openclaw\extensions" mkdir "data\openclaw\extensions"
 if not exist "data\workspace" mkdir "data\workspace"
 
 REM 读取 Gateway token（用于后续配置）
