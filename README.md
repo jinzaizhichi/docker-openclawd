@@ -14,10 +14,20 @@ OpenClawd 的 Docker 部署方案，用于在容器中运行 Gateway 与 CLI，�
 
 **方式一：一键脚本（推荐）**
 
+- **macOS / Linux**：在项目目录执行  
+  `./docker-setup.sh`
+- **Windows（CMD 或 PowerShell）**：在项目目录执行  
+  `docker-setup.bat`
+
+或先克隆再执行：
+
 ```bash
 git clone https://github.com/liam798/docker-openclawd.git
 cd docker-openclawd
+# macOS/Linux:
 ./docker-setup.sh
+# Windows:
+docker-setup.bat
 ```
 
 脚本会创建 `.env`、生成 Gateway 令牌、构建镜像并启动 Gateway。
