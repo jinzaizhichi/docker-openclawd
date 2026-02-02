@@ -33,13 +33,11 @@ RUN printf 'Acquire::http::Proxy "false";\nAcquire::https::Proxy "false";\n' > /
     && apt-get purge -y git && apt-get autoremove -y --purge && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
-# 可选：安装额外系统依赖（如 ffmpeg、build-essential）
-RUN (unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY 2>/dev/null; \
-    if [ -n "${OPENCLAW_DOCKER_APT_PACKAGES}" ]; then \
-    printf 'Acquire::http::Proxy "false";\nAcquire::https::Proxy "false";\n' > /etc/apt/apt.conf.d/99noproxy; \
+# 可选：安装额外系统依赖（如 ffmpeg、build-essential，沿用上层 99noproxy）
+RUN if [ -n "${OPENCLAW_DOCKER_APT_PACKAGES}" ]; then \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${OPENCLAW_DOCKER_APT_PACKAGES} \
     && apt-get clean && rm -rf /var/lib/apt/lists/*; \
-    fi)
+    fi
 
 # 依赖与构建（与官方 Dockerfile 一致）
 RUN pnpm install --frozen-lockfile
