@@ -242,6 +242,34 @@ docker compose run --rm openclaw-cli onboard
 
 配置完成后重新执行 `./docker-setup.sh` 或 `docker compose build`。
 
+## 故障排查
+
+### Control UI 显示 disconnected (1008): pairing required
+
+浏览器打开 Control UI 时出现 **disconnected (1008): pairing required**，表示当前设备尚未与 Gateway 完成配对，需在服务器上批准该设备。
+
+**解决步骤：**
+
+1. 查看待配对设备列表：
+   ```bash
+   docker compose exec openclaw-gateway openclaw devices list
+   ```
+   或使用容器名（将 `docker-openclawd-openclaw-gateway-1` 替换为你的 gateway 容器名）：
+   ```bash
+   docker exec -it docker-openclawd-openclaw-gateway-1 openclaw devices list
+   ```
+
+2. 批准最新请求配对的设备：
+   ```bash
+   docker compose exec openclaw-gateway openclaw devices approve --latest
+   ```
+   或：
+   ```bash
+   docker exec -it docker-openclawd-openclaw-gateway-1 openclaw devices approve --latest
+   ```
+
+3. 刷新 Control UI 页面，连接应恢复正常。
+
 ## 参考
 
 - [OpenClaw 官方 Docker 文档](https://docs.clawd.bot/install/docker)

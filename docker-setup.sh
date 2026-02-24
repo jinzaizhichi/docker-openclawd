@@ -277,10 +277,7 @@ echo "✅ Gateway 已启动并配置完成！"
 echo "  - Control UI: http://127.0.0.1:18789/"
 if [ -n "$GATEWAY_TOKEN" ]; then
   echo "  - Gateway Token: ${GATEWAY_TOKEN}"
-  echo "  - 请在 Control UI 设置中填入该令牌"
 fi
 echo ""
 echo "后续配置："
-echo "  - 配置飞书通道: docker compose run --rm openclaw-cli config set channels.feishu.appId \"YOUR_APP_ID\""
 echo "  - 查看日志: docker compose logs -f openclaw-gateway"
-echo "  - 完整配置向导: docker compose run --rm openclaw-cli onboard"
