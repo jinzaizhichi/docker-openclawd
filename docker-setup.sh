@@ -13,6 +13,16 @@ if [ ! -f .env ]; then
   echo "[docker-setup] 已创建 .env（可从 .env.example 修改）"
 fi
 
+# 读取数据目录（支持 .env 自定义）
+CONFIG_DIR=$(grep '^OPENCLAW_CONFIG_DIR=' .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' || echo "")
+WORKSPACE_DIR=$(grep '^OPENCLAW_WORKSPACE_DIR=' .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' || echo "")
+if [ -z "$CONFIG_DIR" ]; then
+  CONFIG_DIR="./data/openclaw"
+fi
+if [ -z "$WORKSPACE_DIR" ]; then
+  WORKSPACE_DIR="./data/workspace"
+fi
+
 # 若 .env 中 OPENCLAW_GATEWAY_TOKEN 为空，生成一个并写回
 if ! grep -q '^OPENCLAW_GATEWAY_TOKEN=.\+' .env 2>/dev/null; then
   TOKEN=$(openssl rand -hex 24 2>/dev/null || echo "")
@@ -27,15 +37,15 @@ if ! grep -q '^OPENCLAW_GATEWAY_TOKEN=.\+' .env 2>/dev/null; then
 fi
 
 # 确保数据目录存在，并设置正确的权限（UID 1000:1000）
-mkdir -p ./data/openclaw ./data/workspace ./data/openclaw/extensions 2>/dev/null || true
+mkdir -p "$CONFIG_DIR" "$WORKSPACE_DIR" "$CONFIG_DIR/extensions" 2>/dev/null || true
 # 设置目录权限，确保容器内用户（1000:1000）可以读写
-chmod -R 755 ./data/openclaw ./data/workspace 2>/dev/null || true
+chmod -R 755 "$CONFIG_DIR" "$WORKSPACE_DIR" 2>/dev/null || true
 # 如果可能，设置所有者（需要 root 权限）
 if [ "$(id -u)" = "0" ]; then
-  chown -R 1000:1000 ./data/openclaw ./data/workspace 2>/dev/null || true
+  chown -R 1000:1000 "$CONFIG_DIR" "$WORKSPACE_DIR" 2>/dev/null || true
 else
   # 非 root 用户：至少确保目录可写
-  chmod -R 777 ./data/openclaw ./data/workspace 2>/dev/null || true
+  chmod -R 777 "$CONFIG_DIR" "$WORKSPACE_DIR" 2>/dev/null || true
 fi
 
 # 读取 Gateway token（用于后续配置）
@@ -133,6 +143,13 @@ else
   rm -f .env.bak 2>/dev/null || true
 fi
 
+# 供 CLI 使用的代理环境
+if [ -n "$CONTAINER_HTTP_PROXY" ]; then
+  PROXY_ENV="-e HTTP_PROXY=${CONTAINER_HTTP_PROXY} -e HTTPS_PROXY=${CONTAINER_HTTPS_PROXY} -e http_proxy=${CONTAINER_HTTP_PROXY} -e https_proxy=${CONTAINER_HTTPS_PROXY} -e NO_PROXY=localhost,127.0.0.1,::1 -e no_proxy=localhost,127.0.0.1,::1"
+else
+  PROXY_ENV="-e HTTP_PROXY= -e HTTPS_PROXY= -e http_proxy= -e https_proxy= -e NO_PROXY=* -e no_proxy=*"
+fi
+
 # 使用 npm 安装 OpenClaw，无需克隆源码（镜像构建时 npm install -g openclaw）
 echo "[docker-setup] 构建镜像（首次较慢，将从 npm 安装 OpenClaw）..."
 docker compose build
@@ -141,7 +158,7 @@ echo "[docker-setup] 启动 Gateway..."
 docker compose up -d openclaw-gateway
 
 # 自动执行 onboarding（若配置不存在）
-CONFIG_FILE="./data/openclaw/openclaw.json"
+CONFIG_FILE="${CONFIG_DIR}/openclaw.json"
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "[docker-setup] 检测到首次运行，执行自动配置（onboarding）..."
   
@@ -158,7 +175,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   # 使用 gateway.auth.token（新格式），避免废弃警告
   # 添加 gateway.mode=local 避免 Gateway 因缺少模式而反复重启
   echo "[docker-setup] 创建最小配置文件..."
-  mkdir -p ./data/openclaw
+  mkdir -p "$CONFIG_DIR"
   if [ -n "$GATEWAY_TOKEN" ]; then
     cat > "$CONFIG_FILE" <<EOF
 {

@@ -12,14 +12,22 @@ if not exist .env (
 REM 若 .env 中 OPENCLAW_GATEWAY_TOKEN 为空，用 PowerShell 生成并写回
 powershell -NoProfile -Command "$c = Get-Content .env -Raw -ErrorAction SilentlyContinue; if ($c -and $c -notmatch 'OPENCLAW_GATEWAY_TOKEN=.+') { $b = New-Object byte[] 24; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); $t = -join ($b | ForEach-Object { $_.ToString('x2') }); if ($c -match 'OPENCLAW_GATEWAY_TOKEN=') { $c = $c -replace 'OPENCLAW_GATEWAY_TOKEN=.*', \"OPENCLAW_GATEWAY_TOKEN=$t\" } else { $c = $c.TrimEnd() + \"`nOPENCLAW_GATEWAY_TOKEN=$t`n\" }; Set-Content .env $c -NoNewline; Write-Host '[docker-setup] 已生成 OPENCLAW_GATEWAY_TOKEN 并写入 .env' }"
 
-REM 确保数据目录存在，包括 extensions 子目录
-if not exist "data\openclaw" mkdir "data\openclaw"
-if not exist "data\openclaw\extensions" mkdir "data\openclaw\extensions"
-if not exist "data\workspace" mkdir "data\workspace"
-
 REM 读取 Gateway token（用于后续配置）
 for /f "tokens=2 delims==" %%a in ('findstr /b "OPENCLAW_GATEWAY_TOKEN=" .env 2^>nul') do set GATEWAY_TOKEN=%%a
 set GATEWAY_TOKEN=%GATEWAY_TOKEN:"=%
+
+REM 读取数据目录（支持 .env 自定义）
+for /f "tokens=2 delims==" %%a in ('findstr /b "OPENCLAW_CONFIG_DIR=" .env 2^>nul') do set OPENCLAW_CONFIG_DIR=%%a
+set OPENCLAW_CONFIG_DIR=%OPENCLAW_CONFIG_DIR:"=%
+if not defined OPENCLAW_CONFIG_DIR set OPENCLAW_CONFIG_DIR=data\openclaw
+for /f "tokens=2 delims==" %%a in ('findstr /b "OPENCLAW_WORKSPACE_DIR=" .env 2^>nul') do set OPENCLAW_WORKSPACE_DIR=%%a
+set OPENCLAW_WORKSPACE_DIR=%OPENCLAW_WORKSPACE_DIR:"=%
+if not defined OPENCLAW_WORKSPACE_DIR set OPENCLAW_WORKSPACE_DIR=data\workspace
+
+REM 确保数据目录存在，包括 extensions 子目录
+if not exist "%OPENCLAW_CONFIG_DIR%" mkdir "%OPENCLAW_CONFIG_DIR%"
+if not exist "%OPENCLAW_CONFIG_DIR%\\extensions" mkdir "%OPENCLAW_CONFIG_DIR%\\extensions"
+if not exist "%OPENCLAW_WORKSPACE_DIR%" mkdir "%OPENCLAW_WORKSPACE_DIR%"
 
 REM 检测并转换宿主机代理地址（容器内可访问）
 REM Windows/macOS 使用 host.docker.internal，Linux 也尝试使用（Docker 20.10+ 支持）
@@ -56,6 +64,13 @@ if defined CONTAINER_HTTP_PROXY (
   powershell -NoProfile -Command "$c = Get-Content .env -Raw -ErrorAction SilentlyContinue; if (-not $c) { $c = '' }; $c = $c -replace '(?m)^OPENCLAW_RUNTIME_HTTP_PROXY=.*', \"OPENCLAW_RUNTIME_HTTP_PROXY=\"; if ($c -notmatch '(?m)^OPENCLAW_RUNTIME_HTTP_PROXY=') { $c = $c.TrimEnd() + \"`nOPENCLAW_RUNTIME_HTTP_PROXY=`n\" }; $c = $c -replace '(?m)^OPENCLAW_RUNTIME_HTTPS_PROXY=.*', \"OPENCLAW_RUNTIME_HTTPS_PROXY=\"; if ($c -notmatch '(?m)^OPENCLAW_RUNTIME_HTTPS_PROXY=') { $c = $c.TrimEnd() + \"`nOPENCLAW_RUNTIME_HTTPS_PROXY=`n\" }; Set-Content .env $c -NoNewline"
 )
 
+REM 供 CLI 使用的代理环境
+if defined CONTAINER_HTTP_PROXY (
+  set PROXY_ENV=-e HTTP_PROXY=%CONTAINER_HTTP_PROXY% -e HTTPS_PROXY=%CONTAINER_HTTPS_PROXY% -e http_proxy=%CONTAINER_HTTP_PROXY% -e https_proxy=%CONTAINER_HTTPS_PROXY% -e NO_PROXY=localhost,127.0.0.1,::1 -e no_proxy=localhost,127.0.0.1,::1
+) else (
+  set PROXY_ENV=-e HTTP_PROXY= -e HTTPS_PROXY= -e http_proxy= -e https_proxy= -e NO_PROXY=* -e no_proxy=*
+)
+
 REM 使用 npm 安装 OpenClaw，无需克隆源码（镜像构建时 npm install -g openclaw）
 echo [docker-setup] 构建镜像（首次较慢，将从 npm 安装 OpenClaw）...
 docker compose build
@@ -65,21 +80,8 @@ echo [docker-setup] 启动 Gateway...
 docker compose up -d openclaw-gateway
 if errorlevel 1 exit /b 1
 
-REM 等待 Gateway 启动并自动安装飞书插件
-echo [docker-setup] 等待 Gateway 就绪并安装飞书插件...
-timeout /t 8 /nobreak >nul
-
-REM 自动安装飞书插件（若未安装）
-REM 使用已配置的运行时代理（从 .env 读取，已转换为容器可访问地址）
-echo [docker-setup] 检查并安装飞书插件...
-if defined CONTAINER_HTTP_PROXY (
-  set PROXY_ENV=-e HTTP_PROXY=%CONTAINER_HTTP_PROXY% -e HTTPS_PROXY=%CONTAINER_HTTPS_PROXY% -e http_proxy=%CONTAINER_HTTP_PROXY% -e https_proxy=%CONTAINER_HTTPS_PROXY% -e NO_PROXY=localhost,127.0.0.1,::1 -e no_proxy=localhost,127.0.0.1,::1
-) else (
-  set PROXY_ENV=-e HTTP_PROXY= -e HTTPS_PROXY= -e http_proxy= -e https_proxy= -e NO_PROXY=* -e no_proxy=*
-)
-
 REM 自动执行 onboarding（若配置不存在）
-if not exist "data\openclaw\openclaw.json" (
+if not exist "%OPENCLAW_CONFIG_DIR%\\openclaw.json" (
   echo [docker-setup] 检测到首次运行，执行自动配置（onboarding）...
   
   REM 等待 Gateway 完全就绪
@@ -89,7 +91,7 @@ if not exist "data\openclaw\openclaw.json" (
   REM 创建最小配置文件（使用 gateway.auth.token 新格式）
   REM 添加 gateway.mode=local 避免 Gateway 因缺少模式而反复重启
   echo [docker-setup] 创建最小配置文件...
-  if not exist "data\openclaw" mkdir "data\openclaw"
+  if not exist "%OPENCLAW_CONFIG_DIR%" mkdir "%OPENCLAW_CONFIG_DIR%"
   (
     echo {
     echo   "gateway": {
@@ -103,7 +105,7 @@ if not exist "data\openclaw\openclaw.json" (
     echo     }
     echo   }
     echo }
-  ) > "data\openclaw\openclaw.json"
+  ) > "%OPENCLAW_CONFIG_DIR%\\openclaw.json"
   
   REM 如果有 token，通过 CLI 设置（使用新格式）
   if defined GATEWAY_TOKEN (
@@ -124,7 +126,7 @@ if not exist "data\openclaw\openclaw.json" (
   
   REM 自动迁移旧配置格式（gateway.token -> gateway.auth.token）
   echo [docker-setup] 检查并迁移旧配置格式...
-  powershell -NoProfile -Command "$p = 'data\openclaw\openclaw.json'; if (Test-Path $p) { $data = Get-Content $p -Raw | ConvertFrom-Json; if ($data.gateway.token -and -not $data.gateway.auth.token) { $data.gateway.auth = @{token = $data.gateway.token}; $data.gateway.PSObject.Properties.Remove('token'); $data | ConvertTo-Json -Depth 10 | Set-Content $p -NoNewline; Write-Host '[docker-setup] 配置已迁移到 gateway.auth.token'; exit 0 } else { exit 1 } } else { exit 1 }" 2>nul
+  powershell -NoProfile -Command "$p = '%OPENCLAW_CONFIG_DIR%\\openclaw.json'; if (Test-Path $p) { $data = Get-Content $p -Raw | ConvertFrom-Json; if ($data.gateway.token -and -not $data.gateway.auth.token) { $data.gateway.auth = @{token = $data.gateway.token}; $data.gateway.PSObject.Properties.Remove('token'); $data | ConvertTo-Json -Depth 10 | Set-Content $p -NoNewline; Write-Host '[docker-setup] 配置已迁移到 gateway.auth.token'; exit 0 } else { exit 1 } } else { exit 1 }" 2>nul
   if not errorlevel 1 (
     echo [docker-setup] 重启 Gateway 使新配置生效...
     docker compose restart openclaw-gateway >nul 2>&1
