@@ -101,6 +101,41 @@ docker compose up -d openclaw-gateway
 
 配置与工作区会持久化在 `./data/openclaw` 与 `./data/workspace`（可在 `.env` 中修改 `OPENCLAW_CONFIG_DIR` / `OPENCLAW_WORKSPACE_DIR`）。
 
+## 可选：使用 docker-compose.override.yml 添加挂载
+
+如需把宿主机目录挂载进容器（例如让 OpenClaw 访问本机代码或文件），可使用 **docker-compose.override.yml**。Docker Compose 会自动合并该文件与 `docker-compose.yml`，无需修改主配置，且该文件通常不提交到 Git（可加入 `.gitignore`），便于本地定制。
+
+**示例：挂载宿主机目录到容器的 `/host/Work`**
+
+在项目根目录创建 `docker-compose.override.yml`：
+
+```yaml
+# docker-compose.override.yml（仅本地使用，可不提交）
+services:
+  openclaw-gateway:
+    volumes:
+      - /Volumes/Disk_APFS/Work:/host/Work
+  openclaw-cli:
+    volumes:
+      - /Volumes/Disk_APFS/Work:/host/Work
+```
+
+挂载多个目录时，在 `volumes` 下列出多项即可：
+
+```yaml
+services:
+  openclaw-gateway:
+    volumes:
+      - /path/on/host/projects:/host/projects
+      - /path/on/host/data:/host/data
+  openclaw-cli:
+    volumes:
+      - /path/on/host/projects:/host/projects
+      - /path/on/host/data:/host/data
+```
+
+修改后执行 `docker compose up -d openclaw-gateway`（或先 down 再 up）使挂载生效。容器内路径可自定（如 `/host/Work`、`/host/projects` 等），按需与 Agent 或工具约定一致即可。
+
 ## 首次配置（Onboarding）
 
 **一键脚本会自动执行 onboarding**，创建最小配置并启动 Gateway。
