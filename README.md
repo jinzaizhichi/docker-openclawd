@@ -131,7 +131,7 @@ docker compose run --rm openclaw-cli onboard
   OpenClawd 已内置官方飞书通道，无需安装社区插件。配置步骤：
   
   1. 在 [飞书开放平台](https://open.feishu.cn/) 创建自建应用，获取 App ID 和 App Secret
-  2. 配置事件订阅（必需）：在应用后台 → 事件与回调 → 选择「长连接」，添加 `im.message.receive_v1` 事件
+  2. **配置事件订阅（必需）**：在应用后台 → **事件与回调** → 将事件订阅方式设为 **「长连接」**（不要用「HTTP 回调」）；在事件列表中添加 **「接收消息 v2.0」**（事件标识：`im.message.receive_v1`），保存后等待生效。
   3. 申请所需权限（见下方）
   4. 配置通道：
      ```bash
@@ -153,7 +153,7 @@ docker compose run --rm openclaw-cli onboard
   - `im:resource` - 媒体资源
   
   **发消息无响应时排查**（按顺序检查）：
-  1. **事件订阅**（最常见）：飞书开放平台 → 应用 → 事件与回调 → 事件配置方式选 **「使用长连接接收事件」**，并添加 **`im.message.receive_v1`**，保存后等待生效；权限里「事件订阅」相关权限需已申请并审核通过。
+  1. **事件订阅**（最常见）：飞书开放平台 → 应用 → **事件与回调** → 事件订阅方式必须为 **「长连接」**（使用长连接接收事件），并添加事件 **「接收消息 v2.0」**（`im.message.receive_v1`），保存后等待生效；权限里「事件订阅」相关权限需已申请并审核通过。
   2. **通道开关**：`docker compose run --rm openclaw-cli config get channels.feishu.enabled` 为 `true`。
   3. **appId / appSecret**：与开放平台一致，且应用已发布（至少测试版本）；改过配置后执行 `docker compose restart openclaw-gateway`。
   4. **私聊需配对**：默认私聊策略为「配对」时，用户首次私聊机器人会收到一个 **8 位配对码**（约 1 小时有效）。管理员在服务器上执行下方命令通过配对后，该用户才能正常对话。
