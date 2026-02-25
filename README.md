@@ -20,21 +20,16 @@
 
 - Docker Desktop 或 Docker Engine + Docker Compose v2
 
-## 🚀 快速开始
+## 🚀 安装
 
-### 一行命令安装（推荐）
-
-**复制以下命令，一键完成所有安装和配置：**
-
+**macOS/Linux**
 ```bash
-# macOS/Linux:
-git clone https://github.com/liam798/docker-openclawd.git && cd docker-openclawd && ./docker-setup.sh
+curl -fsSL https://raw.githubusercontent.com/liam798/docker-openclawd/main/scripts/install.sh | bash
+```
+**Windows**
 
-# Windows (PowerShell):
-git clone https://github.com/liam798/docker-openclawd.git; cd docker-openclawd; .\docker-setup.bat
-
-# Windows (CMD):
-git clone https://github.com/liam798/docker-openclawd.git && cd docker-openclawd && docker-setup.bat
+```powershell
+irm https://raw.githubusercontent.com/liam798/docker-openclawd/main/scripts/install.bat -OutFile install.bat; .\install.bat
 ```
 
 **脚本会自动完成：**
@@ -46,41 +41,6 @@ git clone https://github.com/liam798/docker-openclawd.git && cd docker-openclawd
 
 **🎉 安装完成后即可使用！** 访问 `http://127.0.0.1:18789/` 打开 Control UI。
 
-### 或分步手动安装
-
-如需分步执行，可参考下方命令：
-
-```bash
-git clone https://github.com/liam798/docker-openclawd.git
-cd docker-openclawd
-# macOS/Linux:
-./docker-setup.sh
-# Windows:
-docker-setup.bat
-```
-
-**方式二：手动编译安装**
-
-```bash
-# 1. 克隆本仓库
-git clone https://github.com/liam798/docker-openclawd.git
-cd docker-openclawd
-
-# 2. 复制环境变量并（可选）编辑
-cp .env.example .env
-# 建议生成并填写 OPENCLAW_GATEWAY_TOKEN，例如: openssl rand -hex 24
-
-# 3. 构建并启动 Gateway
-docker compose build
-docker compose up -d openclaw-gateway
-```
-
-启动后：
-
-- **Control UI（仪表盘）**：本机访问用 **`http://127.0.0.1:18789/`** 或 **`http://localhost:18789/`**；若需从局域网/外网用 **HTTP** 访问（如 `http://192.168.x.x:18789`），需开启「允许不安全 HTTP」并重启（见下方）。
-- 若设置了 `OPENCLAW_GATEWAY_TOKEN`，在 Control UI 的「设置 → token」中填入该令牌。
-
-**从本机访问**：直接用 `http://127.0.0.1:18789/` 即可。
 
 **从其他设备访问（两种方式任选）：**
 
